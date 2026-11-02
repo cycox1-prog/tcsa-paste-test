@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>TCSA Paste Test</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: single phone-width column — referral card first, test checklist second */
+:root{
+  --bg:#eef2f4; --surface:#ffffff; --ink:#14232c; --muted:#5b6b75; --line:#d5dee3;
+  --accent:#0b7a80; --accent-ink:#ffffff; --good:#1f8a4c; --bad:#c2412d;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"Figtree",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f181d; --surface:#18242b; --ink:#e4ecef; --muted:#93a4ad; --line:#2c3b43;
+  --accent:#3bb5ba; --accent-ink:#06191b; --good:#4cc485; --bad:#f07a63; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f181d; --surface:#18242b; --ink:#e4ecef; --muted:#93a4ad; --line:#2c3b43;
+  --accent:#3bb5ba; --accent-ink:#06191b; --good:#4cc485; --bad:#f07a63; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+.wrap{max-width:560px;margin:0 auto;padding-block:20px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:grid;gap:20px}
+h1,h2{font-family:var(--f-display);text-wrap:balance;margin:0}
+h1{font-size:1.6rem;font-weight:800;letter-spacing:-.01em}
+h2{font-size:1.1rem;font-weight:600}
+p{margin:0}
+.lead{color:var(--muted)}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:14px;min-width:0}
+.blurb{white-space:pre-wrap;background:var(--bg);border-radius:10px;padding:12px;font-size:.95rem}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:600 1rem var(--f-body);border:0;border-radius:10px;padding:12px 16px;background:var(--accent);color:var(--accent-ink);cursor:pointer;flex:1 1 140px;min-height:48px}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:focus-visible,input:focus-visible,textarea:focus-visible,.seg button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.status{font-size:.9rem;min-height:1.4em;color:var(--muted)}
+.status.ok{color:var(--good)} .status.err{color:var(--bad)}
+.art{width:100%;max-width:100%;border-radius:10px;display:block;border:1px solid var(--line)}
+.hint{font-size:.85rem;color:var(--muted)}
+label{font-weight:600;font-size:.9rem}
+input[type=url],textarea{width:100%;box-sizing:border-box;font:1rem var(--f-body);padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+textarea{min-height:110px}
+ol.tests{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:t}
+ol.tests li{display:grid;gap:6px;padding-bottom:12px;border-bottom:1px solid var(--line);counter-increment:t}
+ol.tests li:last-child{border-bottom:0;padding-bottom:0}
+ol.tests li strong::before{content:counter(t) ". ";color:var(--accent)}
+.seg{display:flex;gap:6px}
+.seg button{font:600 .9rem var(--f-body);padding:8px 12px;border-radius:999px;border:1.5px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed=true][data-v=worked]{background:var(--good);border-color:var(--good);color:#fff}
+.seg button[aria-pressed=true][data-v=failed]{background:var(--bad);border-color:var(--bad);color:#fff}
+details summary{cursor:pointer;font-weight:600}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--muted);word-break:break-word}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <span class="eyebrow">TCSA Referral Hub · Phase 1</span>
+    <h1>Will it paste into Facebook?</h1>
+    <p class="lead">Use the buttons on this sample referral card, then paste into a Facebook comment on your phone. Mark what worked below and send the results to Cy.</p>
+  </header>
+
+  <section class="card" aria-labelledby="cardTitle">
+    <div style="display:grid;gap:2px">
+      <span class="eyebrow">Referral card (sample)</span>
+      <h2 id="cardTitle">Shark Pressure Washing</h2>
+    </div>
+
+    <div class="row">
+      <a id="openPost" class="btn ghost" style="text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center" href="https://www.facebook.com/" target="_blank" rel="noopener">Open post</a>
+    </div>
+
+    <div style="display:grid;gap:8px">
+      <div class="blurb" id="blurb"></div>
+      <div class="row">
+        <button class="btn" id="copyText" type="button">Copy text</button>
+        <button class="btn ghost" id="nextBlurb" type="button" style="flex:0 1 auto">Next blurb</button>
+      </div>
+      <p class="status" id="textStatus" role="status"></p>
+    </div>
+
+    <div style="display:grid;gap:8px">
+      <img id="art" class="art" alt="Business artwork">
+      <div class="row">
+        <button class="btn" id="copyImage" type="button">Copy image</button>
+        <button class="btn ghost" id="saveImage" type="button">Save image</button>
+      </div>
+      <p class="status" id="imageStatus" role="status"></p>
+      <p class="hint">Also try: press and hold the picture above, choose Copy, and paste.</p>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="testsTitle">
+    <h2 id="testsTitle">Test results</h2>
+    <p class="hint" id="device"></p>
+    <ol class="tests" id="tests"></ol>
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" placeholder="Example: image pasted but the text disappeared"></textarea>
+    <button class="btn" id="copyResults" type="button">Copy my results</button>
+    <p class="status" id="resultsStatus" role="status"></p>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Test setup: your own post link, blurbs and artwork</summary>
+      <div style="display:grid;gap:12px;margin-top:12px">
+        <div style="display:grid;gap:4px">
+          <label for="postUrl">Facebook post to test on</label>
+          <input id="postUrl" type="url" placeholder="https://www.facebook.com/groups/…">
+        </div>
+        <div style="display:grid;gap:4px">
+          <label for="blurbsEdit">Blurbs, separated by a line with ---</label>
+          <textarea id="blurbsEdit" style="min-height:200px"></textarea>
+        </div>
+        <div style="display:grid;gap:4px">
+          <label for="artFile">Artwork image</label>
+          <input id="artFile" type="file" accept="image/*">
+        </div>
+        <button class="btn" id="saveSetup" type="button">Save setup</button>
+        <p class="status" id="setupStatus" role="status"></p>
+      </div>
+    </details>
+  </section>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+const DEFAULT_BLURBS=[
+"I'd recommend Shark Pressure Washing. Locally owned, serving Naples to Sarasota, and they do houses, roofs, driveways and lanais. Members of Trusted Community Service Affiliates.\n[phone] · [website]",
+"For pressure washing, call Shark Pressure Washing. They soft wash roofs and siding so nothing gets damaged, and they're vetted through Trusted Community Service Affiliates.\n[phone] · [website]",
+"Shark Pressure Washing out of Port Charlotte is who we use. Fair pricing and they show up when they say they will.\n[phone] · [website]"
+];
+let blurbs=(store.get('tcsa_blurbs')||'').split(/\n---\n/).map(s=>s.trim()).filter(Boolean);
+if(!blurbs.length) blurbs=DEFAULT_BLURBS.slice();
+let bi=0;
+function showBlurb(){$('blurb').textContent=blurbs[bi%blurbs.length];}
+$('nextBlurb').onclick=()=>{bi++;showBlurb();};
+$('blurbsEdit').value=blurbs.join('\n---\n');
+const savedUrl=store.get('tcsa_post');
+if(savedUrl){$('postUrl').value=savedUrl;$('openPost').href=savedUrl;}
+
+function setStatus(id,msg,kind){const el=$(id);el.textContent=msg;el.className='status'+(kind?' '+kind:'');}
+
+// ---- text copy
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return 'clipboard API';}
+  catch(e){
+    const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');
+    ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);
+    ta.select();ta.setSelectionRange(0,t.length);
+    const ok=document.execCommand&&document.execCommand('copy');ta.remove();
+    if(ok) return 'fallback';
+    throw e;
+  }
+}
+$('copyText').onclick=async()=>{
+  try{const how=await copyText(blurbs[bi%blurbs.length]);setStatus('textStatus','Text copied ('+how+'). Now paste it in the Facebook comment.','ok');}
+  catch(e){setStatus('textStatus','Copy was blocked on this device: '+(e&&e.name||e)+'. Press and hold the text to copy it instead.','err');}
+};
+
+// ---- artwork
+let pngBlob=null;
+function setArtFromBlob(blob){
+  pngBlob=blob;
+  const r=new FileReader();r.onload=()=>{$('art').src=r.result;};r.readAsDataURL(blob);
+}
+function toPng(img){
+  const c=document.createElement('canvas');c.width=img.naturalWidth||img.width;c.height=img.naturalHeight||img.height;
+  c.getContext('2d').drawImage(img,0,0);
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+function sampleArt(){
+  const c=document.createElement('canvas');c.width=1080;c.height=1080;const g=c.getContext('2d');
+  const grd=g.createLinearGradient(0,0,0,1080);grd.addColorStop(0,'#0b3b52');grd.addColorStop(1,'#0b7a80');
+  g.fillStyle=grd;g.fillRect(0,0,1080,1080);
+  g.strokeStyle='rgba(255,255,255,.18)';g.lineWidth=10;
+  for(let y=700;y<1080;y+=70){g.beginPath();for(let x=0;x<=1080;x+=20){g.lineTo(x,y+Math.sin(x/70+y)*18);}g.stroke();}
+  g.fillStyle='#ffffff';g.textAlign='center';
+  g.font='800 104px Archivo, system-ui, sans-serif';g.fillText('SHARK',540,380);
+  g.font='600 64px Archivo, system-ui, sans-serif';g.fillText('PRESSURE WASHING',540,470);
+  g.font='500 40px Figtree, system-ui, sans-serif';g.fillStyle='rgba(255,255,255,.85)';
+  g.fillText('Sample artwork for paste testing',540,590);
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+async function loadArt(){
+  const saved=store.get('tcsa_art');
+  if(saved){const img=new Image();img.onload=async()=>setArtFromBlob(await toPng(img));img.src=saved;return;}
+  if(document.fonts&&document.fonts.ready){try{await document.fonts.ready;}catch(e){}}
+  setArtFromBlob(await sampleArt());
+}
+$('artFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{const img=new Image();img.onload=async()=>{const b=await toPng(img);setArtFromBlob(b);
+    const fr=new FileReader();fr.onload=()=>store.set('tcsa_art',fr.result);fr.readAsDataURL(b);
+    setStatus('setupStatus','Artwork loaded.','ok');};img.src=r.result;};
+  r.readAsDataURL(f);
+};
+
+$('copyImage').onclick=async()=>{
+  if(!pngBlob){setStatus('imageStatus','The image is still loading. Try again in a second.','err');return;}
+  if(!(window.ClipboardItem&&navigator.clipboard&&navigator.clipboard.write)){
+    setStatus('imageStatus','This browser cannot copy images from a web page. Use Save image or press and hold the picture.','err');return;}
+  try{
+    await navigator.clipboard.write([new ClipboardItem({'image/png':Promise.resolve(pngBlob)})]);
+    setStatus('imageStatus','Image copied. Now paste it in the Facebook comment.','ok');
+  }catch(e){setStatus('imageStatus','Copy was blocked: '+(e&&e.name||e)+'. Use Save image or press and hold the picture.','err');}
+};
+
+$('saveImage').onclick=async()=>{
+  if(!pngBlob)return;
+  const file=new File([pngBlob],'referral-artwork.png',{type:'image/png'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file]});
+      setStatus('imageStatus','Choose Save Image, then attach it with the photo button in the Facebook comment.','ok');return;}
+    throw new Error('Sharing files is not supported here');
+  }catch(e){
+    if(e&&e.name==='AbortError'){setStatus('imageStatus','Save cancelled.','');return;}
+    setStatus('imageStatus','Saving is not available in this view. Press and hold the picture and choose Save to Photos.','err');
+  }
+};
+
+// ---- setup
+$('saveSetup').onclick=()=>{
+  const list=$('blurbsEdit').value.split(/\n---\n/).map(s=>s.trim()).filter(Boolean);
+  if(list.length){blurbs=list;bi=0;showBlurb();store.set('tcsa_blurbs',list.join('\n---\n'));}
+  const u=$('postUrl').value.trim();
+  if(u){$('openPost').href=u;store.set('tcsa_post',u);}
+  setStatus('setupStatus','Setup saved on this phone.','ok');
+};
+
+// ---- tests
+const TESTS=[
+  ['copytext','Copy text, then paste in a Facebook comment'],
+  ['copyimage','Copy image, then paste in a Facebook comment'],
+  ['longpress','Press and hold the picture, Copy, then paste'],
+  ['saveimage','Save image, then attach with Facebook\'s photo button'],
+  ['both','Text and image together in one posted comment']
+];
+const results={};
+const ua=navigator.userAgent;
+const os=/iPhone|iPad|iPod/.test(ua)?'iPhone/iPad':/Android/.test(ua)?'Android':/Mac/.test(ua)?'Mac':/Windows/.test(ua)?'Windows':'Other';
+const br=/FBAN|FBAV/.test(ua)?'Facebook in-app browser':/CriOS|Chrome/.test(ua)&&!/Edg/.test(ua)?'Chrome':/Safari/.test(ua)?'Safari':/Firefox|FxiOS/.test(ua)?'Firefox':'Other browser';
+$('device').textContent='Detected: '+os+', '+br+'. Mark each test after you try it.';
+const ol=$('tests');
+TESTS.forEach(([k,label])=>{
+  const li=document.createElement('li');
+  li.innerHTML='<strong></strong><div class="seg" role="group"><button type="button" data-v="worked" aria-pressed="false">Worked</button><button type="button" data-v="failed" aria-pressed="false">Failed</button></div>';
+  li.querySelector('strong').textContent=label;
+  li.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    const on=b.getAttribute('aria-pressed')!=='true';
+    li.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    if(on){b.setAttribute('aria-pressed','true');results[k]=b.dataset.v;}else delete results[k];
+  });
+  ol.appendChild(li);
+});
+$('copyResults').onclick=async()=>{
+  const lines=['TCSA paste test',os+' · '+br];
+  TESTS.forEach(([k,label])=>lines.push(label+': '+(results[k]||'not tested')));
+  const n=$('notes').value.trim();if(n)lines.push('Notes: '+n);
+  lines.push('UA: '+ua);
+  try{await copyText(lines.join('\n'));setStatus('resultsStatus','Results copied. Text them to Cy.','ok');}
+  catch(e){setStatus('resultsStatus','Could not copy. Take a screenshot of this section instead.','err');}
+};
+
+showBlurb();loadArt();
+})();
+</script>
+
+</body>
+</html>
