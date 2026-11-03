@@ -66,7 +66,7 @@ create table if not exists private.settings (
 );
 insert into private.settings(key, value) values
   ('join_code', 'TCSA' || lpad((floor(random() * 10000))::int::text, 4, '0')),
-  ('app_url', ''),
+  ('app_url', 'https://cycox1-prog.github.io/tcsa-paste-test/hub/'),
   ('slack_webhook_url', '')
 on conflict (key) do nothing;
 
@@ -297,3 +297,10 @@ create policy artwork_admin_update on storage.objects for update to authenticate
   using (bucket_id = 'artwork' and public.is_admin());
 create policy artwork_admin_delete on storage.objects for delete to authenticated
   using (bucket_id = 'artwork' and public.is_admin());
+
+-- Tightening found by Supabase's security advisor
+alter function private.slack_escape(text) set search_path = public;
+revoke execute on function public.is_member() from anon, public;
+revoke execute on function public.is_admin() from anon, public;
+grant execute on function public.is_member() to authenticated;
+grant execute on function public.is_admin() to authenticated;
