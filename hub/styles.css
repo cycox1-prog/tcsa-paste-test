@@ -125,3 +125,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .confirm{background:var(--warn-soft);border-radius:10px;padding:12px;display:grid;gap:8px}
 .auth-hero{display:grid;gap:6px;padding-top:12px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+.howto{margin:0;padding-left:1.25rem;display:grid;gap:6px}
+.kbd{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;background:var(--sunk);font-size:.85rem}
+details.more summary{cursor:pointer;font-weight:600;color:var(--accent);padding:4px 0}
+details.more[open] summary{margin-bottom:8px}

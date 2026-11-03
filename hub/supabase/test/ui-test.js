@@ -8,7 +8,8 @@ const out = process.argv[2];
   const b = await chromium.launch();
   const errors = [];
   async function page(opts) {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: opts.dark ? 'dark' : 'light' });
+    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: opts.dark ? 'dark' : 'light', userAgent: opts.ua });
+    if (opts.noPush) await ctx.addInitScript(() => { delete window.PushManager; });
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(opts.name + ': ' + e.message));
     p.on('console', (m) => { if (m.type() === 'error' && !/favicon|fonts\.g|net::ERR/.test(m.text())) errors.push(opts.name + ' console: ' + m.text()); });
@@ -32,7 +33,7 @@ const out = process.argv[2];
     { name: 'log', hash: '#/log', act: async (p) => { await p.selectOption('#logBiz', 'b1'); await p.waitForTimeout(200); } },
     { name: 'stats', hash: '#/stats' },
     { name: 'admin', hash: '#/admin' }, { name: 'admin-biz', hash: '#/admin/b/b1' },
-    { name: 'admin-members', hash: '#/admin/members' }, { name: 'admin-settings', hash: '#/admin/settings' }
+    { name: 'admin-members', hash: '#/admin/members' }, { name: 'me', hash: '#/me' }, { name: 'iphone-todo', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', noPush: true }, { name: 'admin-settings', hash: '#/admin/settings' }
   ];
   for (const s of shots) {
     const p = await page(s);

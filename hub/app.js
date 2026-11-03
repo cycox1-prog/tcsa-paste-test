@@ -109,12 +109,120 @@ async function loadAll() {
   slackOn = !!slack;
 }
 
+// ---------------------------------------------------------------- phone alerts
+const Push = {
+  supported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; },
+  isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); },
+  standalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; },
+  reg: null,
+  async registration() {
+    if (!this.reg) this.reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    return this.reg;
+  },
+  async current() {
+    if (!this.supported()) return null;
+    try { return await (await this.registration()).pushManager.getSubscription(); } catch (e) { return null; }
+  },
+  key() {
+    const b = CFG.vapidPublicKey.replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(b + '='.repeat((4 - b.length % 4) % 4));
+    return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+  },
+  async enable() {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error(perm === 'denied'
+      ? 'Alerts are blocked for this app. Turn them on in your phone\'s Settings → Notifications, then try again.'
+      : 'Alerts weren\'t allowed. Tap Turn on alerts again and choose Allow.');
+    const r = await this.registration();
+    let sub = await r.pushManager.getSubscription();
+    if (!sub) sub = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: this.key() });
+    const j = sub.toJSON();
+    await q(sb.from('push_subscriptions').upsert(
+      { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, user_agent: navigator.userAgent.slice(0, 200) },
+      { onConflict: 'endpoint' }));
+  },
+  async disable() {
+    const sub = await this.current();
+    if (!sub) return;
+    await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    await sub.unsubscribe();
+  },
+  async test() {
+    const { data, error } = await sb.functions.invoke('send-push', { body: { test: true } });
+    if (error) {
+      let msg = error.message;
+      try { const b = await error.context.json(); if (b && b.error) msg = b.error; } catch (_) {}
+      throw new Error(msg);
+    }
+    if (!data || !data.sent) throw new Error('The alert didn\'t go through. Turn alerts off and on again, then retry.');
+    return data;
+  }
+};
+
+// The alerts panel. compact=true shows a one-line version once alerts are on.
+function alertsPanel(compact) {
+  const box = h('div', { class: 'card alerts' }, h('p', { class: 'muted small' }, 'Checking alerts…'));
+  const st = h('p', { class: 'status', role: 'status' });
+  async function paint() {
+    if (!Push.supported()) {
+      if (Push.isIOS() && !Push.standalone()) {
+        box.replaceChildren(
+          h('h2', null, 'Get alerts on your iPhone'),
+          h('p', null, 'iPhones only send alerts from the hub when it\'s on your home screen.'),
+          h('ol', { class: 'howto' },
+            h('li', null, 'Tap the Share button ', h('span', { class: 'kbd', 'aria-label': 'Share icon' }, '⬆'), ' at the bottom of Safari.'),
+            h('li', null, 'Scroll down and tap ', h('b', null, 'Add to Home Screen'), ', then ', h('b', null, 'Add'), '.'),
+            h('li', null, 'Open the hub from the new icon, sign in, and tap ', h('b', null, 'Turn on alerts'), '.')),
+          h('p', { class: 'hint' }, 'Needs iOS 16.4 or newer. You\'ll sign in once more inside the home-screen app.'));
+      } else {
+        box.replaceChildren(h('h2', null, 'Alerts aren\'t available here'),
+          h('p', { class: 'muted' }, 'This browser can\'t show alerts. On Android use Chrome. On iPhone, add the hub to your home screen from Safari.'));
+      }
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      box.replaceChildren(h('h2', null, 'Alerts are blocked'),
+        h('p', { class: 'muted' }, 'Your phone is blocking alerts from the hub. Open your phone\'s Settings, find Notifications for TCSA Hub (or for your browser), and allow them. Then come back here.'));
+      return;
+    }
+    const sub = await Push.current();
+    if (sub) {
+      const testBtn = h('button', { class: 'btn quiet sm', type: 'button', onclick: async () => {
+        testBtn.disabled = true; setStatus(st, 'Sending…');
+        try { await Push.test(); setStatus(st, 'Sent. It should appear in a few seconds.', 'ok'); }
+        catch (e) { setStatus(st, errText(e), 'err'); }
+        testBtn.disabled = false;
+      } }, 'Send a test');
+      const offBtn = h('button', { class: 'linkbtn', type: 'button', onclick: async () => {
+        try { await Push.disable(); toast('Alerts turned off on this device'); paint(); } catch (e) { setStatus(st, errText(e), 'err'); }
+      } }, 'Turn off');
+      box.replaceChildren(
+        h('div', { class: 'row between' }, h('h2', null, compact ? 'Alerts are on' : 'Alerts are on for this device'), h('span', { class: 'pill ok' }, 'On')),
+        !compact && h('p', { class: 'muted small' }, 'You\'ll get an alert when someone logs a referral. Tapping it opens the referral card.'),
+        h('div', { class: 'row' }, testBtn, offBtn), st);
+      return;
+    }
+    const onBtn = h('button', { class: 'btn block', type: 'button', onclick: async () => {
+      onBtn.disabled = true; setStatus(st, 'Turning on…');
+      try { await Push.enable(); toast('Alerts are on'); paint(); }
+      catch (e) { setStatus(st, errText(e), 'err'); onBtn.disabled = false; }
+    } }, 'Turn on alerts');
+    box.replaceChildren(h('h2', null, 'Get an alert for every new referral'),
+      h('p', { class: 'muted small' }, 'Your phone will buzz when someone logs a referral, and tapping the alert opens it here.'),
+      onBtn, st);
+  }
+  paint().catch(() => box.replaceChildren(h('p', { class: 'muted small' }, 'Couldn\'t check alerts on this device.')));
+  box.dataset.compact = compact ? '1' : '';
+  return box;
+}
+
 // ---------------------------------------------------------------- shell
 function chrome(on) {
   $('#topbar').hidden = !on; $('#tabbar').hidden = !on;
   if (on) {
     $('#adminTab').hidden = !me.is_admin;
-    $('#whoBtn').textContent = me.full_name + ' · Sign out';
+    $('#whoBtn').textContent = me.full_name;
   }
 }
 function markTab(tab) {
@@ -208,11 +316,13 @@ async function todoView() {
         h('p', { class: 'small muted' }, (who ? who.full_name : 'Someone') + ' · ' + ago(r.created_at))),
       isDone ? h('span', { class: 'pill ok' }, 'Replied') : h('span', { class: 'pill new' }, r.backups.length + ' replied'));
   };
+  const sub = await Push.current();
   return [
+    !sub && alertsPanel(false),
     h('div', { class: 'row between' }, h('h1', null, open.length ? open.length + ' need your reply' : 'You\'re caught up'),
       h('button', { class: 'btn quiet sm', type: 'button', onclick: route }, 'Refresh')),
     open.length ? h('div', { class: 'list' }, open.map((r) => item(r, false)))
-      : h('div', { class: 'card' }, h('p', { class: 'muted' }, 'No referrals are waiting on you from the last 14 days. When someone logs one, it shows up here and in Slack.'),
+      : h('div', { class: 'card' }, h('p', { class: 'muted' }, 'No referrals are waiting on you from the last 14 days. When someone logs one, it shows up here and you get an alert.'),
         h('a', { class: 'btn', href: '#/log' }, 'Log a referral')),
     done.length && h('h2', null, 'Done'),
     done.length && h('div', { class: 'list' }, done.slice(0, 15).map((r) => item(r, true)))
@@ -329,12 +439,12 @@ function loggedView(r) {
   show(h('div', { class: 'card' },
     h('span', { class: 'eyebrow' }, 'Logged'),
     h('h1', null, b.name + ' referral logged'),
-    slackOn ? h('p', null, 'The group has been notified in Slack so everyone can back you up.')
-      : h('div', { class: 'stack' }, h('p', null, 'Slack notices aren\'t switched on yet. Copy this message and post it in the referral channel.'),
-        h('div', { class: 'blurb' }, slackMsg),
-        h('button', { class: 'btn', type: 'button', onclick: async () => {
+    h('p', null, 'Everyone with alerts turned on has been notified' + (slackOn ? ', and a notice was posted in Slack.' : '.') + ' It\'s also on their To do list.'),
+    !slackOn && h('details', { class: 'more' }, h('summary', null, 'Also post it in Slack?'),
+      h('div', { class: 'stack' }, h('div', { class: 'blurb' }, slackMsg),
+        h('button', { class: 'btn quiet', type: 'button', onclick: async () => {
           try { await copyText(slackMsg); setStatus(st, 'Copied. Paste it in Slack.', 'ok'); } catch (e) { setStatus(st, 'Press and hold the message to copy it.', 'err'); }
-        } }, 'Copy Slack message'), st),
+        } }, 'Copy Slack message'), st)),
     h('div', { class: 'row' }, h('a', { class: 'btn ghost grow', href: '#/r/' + r.id }, 'View referral card'), h('a', { class: 'btn quiet grow', href: '#/' }, 'Done'))));
 }
 
@@ -552,10 +662,14 @@ function adminBiz(id) {
   ];
 }
 
-function adminMembers() {
+async function adminMembers() {
+  const subs = await q(sb.from('push_subscriptions').select('user_id'));
+  const subCount = {}; subs.forEach((x) => { subCount[x.user_id] = (subCount[x.user_id] || 0) + 1; });
+  const withAlerts = D.members.filter((m) => m.active && subCount[m.id]).length;
   return [
     h('h1', null, 'Admin'), adminTabs('members'),
     h('p', { class: 'hint' }, 'New people join with the group code from Settings. Turn off "Active" to remove someone\'s access.'),
+    h('p', null, h('b', null, withAlerts + ' of ' + D.members.filter((m) => m.active).length), ' active members have alerts turned on.'),
     h('div', { class: 'list' }, D.members.map((m) => {
       const s = h('span', { class: 'status small', role: 'status' });
       const save = async (patch) => { try { await q(sb.from('profiles').update(patch).eq('id', m.id)); await loadAll(); setStatus(s, 'Saved', 'ok'); } catch (e) { setStatus(s, errText(e), 'err'); } };
@@ -563,7 +677,9 @@ function adminMembers() {
         D.businesses.map((b) => h('option', { value: b.id, selected: b.id === m.business_id }, b.name)));
       const self = m.id === me.id;
       return h('div', { class: 'card' },
-        h('div', { class: 'row between' }, h('h3', null, m.full_name), self && h('span', { class: 'pill' }, 'You')),
+        h('div', { class: 'row between' }, h('h3', null, m.full_name),
+          h('div', { class: 'row' }, self && h('span', { class: 'pill' }, 'You'),
+            subCount[m.id] ? h('span', { class: 'pill ok' }, 'Alerts on') : h('span', { class: 'pill new' }, 'No alerts'))),
         biz,
         h('div', { class: 'row' },
           h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: m.is_admin, disabled: self, onchange: (e) => save({ is_admin: e.target.checked }) }), 'Admin'),
@@ -582,8 +698,8 @@ async function adminSettings() {
   };
   const appDefault = location.origin + location.pathname;
   const code = field('setCode', 'Group code', s.join_code, 'Share this with members so they can join. Change it to stop new sign-ups.');
-  const app = field('setApp', 'App address', s.app_url || appDefault, 'Used for the link in Slack notices.', 'url');
-  const hook = field('setHook', 'Slack webhook URL', '', s.slack_set ? 'A webhook is set. Paste a new one to replace it.' : 'Not set. Slack notices are off until this is filled in.', 'url');
+  const app = field('setApp', 'App address', s.app_url || appDefault, 'Used for the link in alerts and Slack notices.', 'url');
+  const hook = field('setHook', 'Slack webhook URL', '', s.slack_set ? 'A webhook is set. Paste a new one to replace it.' : 'Not set. Slack notices are off.', 'url');
   hook.inp.placeholder = 'https://hooks.slack.com/services/…';
   const saveOne = async (key, f, val) => {
     try { await q(sb.rpc('set_setting', { p_key: key, p_value: val })); setStatus(f.st, 'Saved.', 'ok'); slackOn = (await q(sb.rpc('slack_enabled'))); }
@@ -593,10 +709,21 @@ async function adminSettings() {
     h('h1', null, 'Admin'), adminTabs('settings'),
     h('div', { class: 'card' }, code.el, h('button', { class: 'btn', type: 'button', onclick: () => saveOne('join_code', code, code.inp.value.trim()) }, 'Save group code')),
     h('div', { class: 'card' }, app.el, h('button', { class: 'btn', type: 'button', onclick: () => saveOne('app_url', app, app.inp.value.trim()) }, 'Save app address')),
-    h('div', { class: 'card' }, h('h2', null, 'Slack notices'), hook.el,
+    h('div', { class: 'card' }, h('h2', null, 'Slack notices (optional)'), h('p', { class: 'hint' }, 'Phone alerts work without Slack. Add a webhook only if the group also wants notices in a Slack channel.'), hook.el,
       h('div', { class: 'row' },
         h('button', { class: 'btn', type: 'button', onclick: () => saveOne('slack_webhook_url', hook, hook.inp.value.trim()) }, 'Save webhook'),
         s.slack_set && h('button', { class: 'btn quiet', type: 'button', onclick: async () => { await saveOne('slack_webhook_url', hook, ''); route(); } }, 'Turn off notices')))
+  ];
+}
+
+function meView() {
+  markTab('');
+  return [
+    h('h1', null, 'My settings'),
+    h('div', { class: 'card' }, h('h2', null, me.full_name), h('p', { class: 'muted' }, (D.biz[me.business_id] || {}).name || ''),
+      h('p', { class: 'hint' }, 'To change your name or business, ask your admin.')),
+    alertsPanel(false),
+    h('button', { class: 'btn quiet block', type: 'button', onclick: signOut }, 'Sign out')
   ];
 }
 
@@ -607,11 +734,12 @@ async function route() {
   try {
     let v;
     if (p[0] === 'log') v = logView();
+    else if (p[0] === 'me') v = meView();
     else if (p[0] === 'r' && p[1]) v = await cardView(p[1]);
     else if (p[0] === 'stats') v = await statsView();
     else if (p[0] === 'admin' && me.is_admin) {
       markTab('admin');
-      if (p[1] === 'members') v = adminMembers();
+      if (p[1] === 'members') v = await adminMembers();
       else if (p[1] === 'settings') v = await adminSettings();
       else if (p[1] === 'b' && p[2]) v = adminBiz(p[2]);
       else v = adminBizList();
@@ -649,7 +777,7 @@ async function boot() {
   else if (location.hash && location.hash !== '#/') store.set('tcsa_after', location.hash);
 })();
 
-$('#whoBtn').addEventListener('click', signOut);
+$('#whoBtn').addEventListener('click', () => { location.hash = '#/me'; });
 window.addEventListener('hashchange', route);
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && me && /^#\/?$/.test(location.hash || '#/')) route();

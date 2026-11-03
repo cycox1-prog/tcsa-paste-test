@@ -26,6 +26,7 @@
       { referral_id: 'r3', user_id: 'me', business_id: SH, blurb_id: 'u3' },
       { referral_id: 'r3', user_id: 'p2', business_id: PL, blurb_id: null }]
   };
+  db.push_subscriptions = [{ user_id: 'p2', endpoint: 'x' }];
   window.__db = db;
   const signedIn = !window.__signedOut;
   function Q(table) {
@@ -37,6 +38,8 @@
       eq(c, v) { filters.push((r) => r[c] === v); return api; },
       ilike(c, v) { filters.push((r) => String(r[c]).toLowerCase() === v.toLowerCase()); return api; },
       insert(p) { op = 'insert'; payload = p; return api; },
+      upsert(p) { op = 'insert'; payload = p; return api; },
+      in(c, v) { filters.push((r) => v.includes(r[c])); return api; },
       update(p) { op = 'update'; payload = p; return api; },
       delete() { op = 'delete'; return api; },
       single() { single = true; return api; },
@@ -67,6 +70,7 @@
   window.supabase = { createClient() {
     return {
       from: Q,
+      functions: { invoke: async () => ({ data: { sent: 1 }, error: null }) },
       rpc(name) { const v = { slack_enabled: false, get_settings: { join_code: 'TCSA4821', app_url: '', slack_set: false } }[name];
         return Promise.resolve({ data: v === undefined ? null : v, error: null }); },
       auth: {
