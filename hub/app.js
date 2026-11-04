@@ -3,6 +3,7 @@
 'use strict';
 
 const CFG = window.TCSA_CONFIG || {};
+const BRAND = (CFG.supabaseUrl || '') + '/storage/v1/object/public/branding/';
 const $ = (s) => document.querySelector(s);
 const main = $('#main');
 
@@ -269,8 +270,10 @@ function authView(mode) {
       h('button', { class: 'linkbtn', type: 'button', onclick: () => authView(signup ? 'signin' : 'signup') }, signup ? 'Sign in' : 'Create an account')),
     !signup && h('p', { class: 'small muted' }, 'Forgot your password? Ask your ' + (CFG.shortName || 'group') + ' admin to reset it.')
   );
-  show(h('div', { class: 'auth-hero' }, h('span', { class: 'eyebrow' }, CFG.groupName || 'Referral group'),
-    h('h1', null, 'Referral Hub'), h('p', { class: 'muted' }, 'Log referrals and back each other up on Facebook in a few taps.')), form);
+  show(h('div', { class: 'auth-hero' },
+    h('img', { class: 'auth-logo', src: BRAND + 'logo-480-v3.jpg', alt: CFG.groupName || 'TCSA', width: '132', height: '126' }),
+    h('span', { class: 'eyebrow' }, CFG.groupName || 'Referral group'),
+    h('h1', null, h('span', { class: 'grad' }, 'Referral Hub')), h('p', { class: 'muted' }, 'Log referrals and back each other up on Facebook in a few taps.')), form);
 }
 
 function joinView() {
@@ -323,7 +326,7 @@ async function todoView() {
       h('button', { class: 'btn quiet sm', type: 'button', onclick: route }, 'Refresh')),
     open.length ? h('div', { class: 'list' }, open.map((r) => item(r, false)))
       : h('div', { class: 'card' }, h('p', { class: 'muted' }, 'No referrals are waiting on you from the last 14 days. When someone logs one, it shows up here and you get an alert.'),
-        h('a', { class: 'btn', href: '#/log' }, 'Log a referral')),
+        h('a', { class: 'btn gold', href: '#/log' }, 'Log a referral')),
     done.length && h('h2', null, 'Done'),
     done.length && h('div', { class: 'list' }, done.slice(0, 15).map((r) => item(r, true)))
   ];

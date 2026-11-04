@@ -8,8 +8,8 @@ self.addEventListener('push', (e) => {
   e.waitUntil(self.registration.showNotification(d.title || 'New TCSA referral', {
     body: d.body || 'Open the hub to back it up.',
     tag: d.tag || undefined,
-    icon: 'icon-180.png',
-    badge: 'icon-180.png',
+    icon: 'https://kvebnkzjbvlxljlyeeqg.supabase.co/storage/v1/object/public/branding/icon-180-v3.png',
+    badge: 'https://kvebnkzjbvlxljlyeeqg.supabase.co/storage/v1/object/public/branding/emblem-96-v3.png',
     data: { url: d.url || './' }
   }));
 });
