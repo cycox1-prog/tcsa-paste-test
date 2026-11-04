@@ -150,19 +150,19 @@ details.more[open] summary{margin-bottom:8px}
 .track{position:relative;--boat-w:56px;transition:height .4s}
 .finish{position:absolute;top:0;bottom:0;right:12px;width:10px;opacity:.55;
   background:repeating-conic-gradient(var(--ink) 0 25%, transparent 0 50%) 0 0/10px 10px}
-.lane{position:absolute;left:0;right:0;height:56px;display:grid;grid-template-columns:44px 1fr;align-items:center;gap:6px;transition:top .8s cubic-bezier(.2,.8,.2,1)}
+.lane{position:absolute;left:0;right:0;height:60px;display:grid;grid-template-columns:44px 1fr;grid-template-rows:18px 1fr;align-items:center;column-gap:6px;transition:top .8s cubic-bezier(.2,.8,.2,1)}
 .lane.mine .water{outline:2px solid var(--gold);outline-offset:2px}
-.lane .place{font:800 .95rem var(--f-display);color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.lane .place{grid-row:1/3;font:800 .95rem var(--f-display);color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
 .lane .place.p1,.lane .place.p2,.lane .place.p3{width:36px;height:36px;border-radius:999px;display:grid;place-items:center;justify-self:center;color:#1a1300;font-size:.8rem}
 .lane .place.p1{background:#f7b708}.lane .place.p2{background:#c9ced8}.lane .place.p3{background:#d79a62}
-.water{position:relative;height:48px;border-radius:12px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 18px,transparent 18px 36px);
+.water{grid-column:2;grid-row:2;align-self:stretch;position:relative;height:auto;min-height:40px;border-radius:12px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 18px,transparent 18px 36px);
   border:1px solid rgba(6,17,172,.12);margin-right:26px}
 .water .boat{position:absolute;bottom:2px;left:0;width:var(--boat-w);transition:left 1.1s cubic-bezier(.2,.8,.2,1)}
-.boat .face{width:34px;height:34px;border-radius:999px;overflow:hidden;margin:0 auto -4px;border:2px solid #fff;background:var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.2);display:grid;place-items:center}
+.boat .face{width:30px;height:30px;border-radius:999px;overflow:hidden;margin:0 auto -4px;border:2px solid #fff;background:var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.2);display:grid;place-items:center}
 .boat .face img{width:100%;height:100%;object-fit:cover}
 .boat .initials{font:800 .7rem var(--f-display);color:var(--accent)}
 .boat .hull{display:block;width:var(--boat-w);height:14px}
-.lane .tag{position:absolute;left:52px;top:-2px;display:flex;gap:6px;align-items:baseline;font-size:.72rem;pointer-events:none;max-width:calc(100% - 90px)}
+.lane .tag{grid-column:2;grid-row:1;display:flex;gap:6px;align-items:baseline;font-size:.75rem;min-width:0;padding-left:4px}
 .lane .tag .pts{font:800 .78rem var(--f-display);color:var(--accent);white-space:nowrap}
 .lane .tag .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
 .lane.flash .water{animation:flash 1.6s ease}
@@ -173,11 +173,15 @@ body.tv .topbar,body.tv .tabbar{display:none!important}
 body.tv{padding-bottom:0}
 body.tv .main{max-width:1200px}
 body.tv .race h1{font-size:2.4rem}
-body.tv .lane{height:84px;grid-template-columns:64px 1fr}
-body.tv .water{height:72px}
-body.tv .boat .face{width:52px;height:52px}
+body.tv .lane{height:88px;grid-template-columns:64px 1fr;grid-template-rows:26px 1fr}
+body.tv .water{min-height:58px}
+body.tv .boat .face{width:44px;height:44px}
 body.tv .track{--boat-w:80px}
 body.tv .boat .hull{width:80px}
-body.tv .lane .tag{left:72px;font-size:1rem}
+body.tv .lane .tag{font-size:1rem}
 body.tv .lane .tag .pts{font-size:1.1rem}
 @media (prefers-reduced-motion: reduce){.lane,.water .boat,.goal-fill{transition:none}}
+@media (prefers-color-scheme: dark){
+  .water{background:repeating-linear-gradient(90deg,rgba(255,255,255,.06) 0 18px,transparent 18px 36px);border-color:rgba(139,149,255,.25)}
+  .boat .hull path:first-child{fill:#3b47d6}
+}

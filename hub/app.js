@@ -738,7 +738,7 @@ function meView() {
 // ---------------------------------------------------------------- participation race
 const RACE = { root: null, lanes: new Map(), data: null, timer: null, channel: null, pending: null };
 const PLACE = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
-const LANE_H = () => (document.body.classList.contains('tv') ? 92 : 64);
+const LANE_H = () => (document.body.classList.contains('tv') ? 96 : 66);
 
 function racePoints(r, isFast) {
   // Mirrors the database scoring, for instant feedback only.
