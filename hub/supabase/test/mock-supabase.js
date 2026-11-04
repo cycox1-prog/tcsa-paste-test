@@ -70,8 +70,12 @@
   window.supabase = { createClient() {
     return {
       from: Q,
+      channel() { const c = { on: () => c, subscribe: () => c }; return c; },
       functions: { invoke: async () => ({ data: { sent: 1 }, error: null }) },
-      rpc(name) { const v = { slack_enabled: false, get_settings: { join_code: 'TCSA4821', app_url: '', slack_set: false } }[name];
+      rpc(name, args) { const lb = (o) => ({ season_start: new Date(now - 4*864e5).toISOString(), season_end: new Date(now + 26*864e5).toISOString(), label: o ? 'October 2026' : 'November 2026', goal: 150, total_referrals: 34,
+        businesses: [{ id: 'b3', name: 'Peace River Roofing', points: 72, logged: 6, backed: 4, fast: 0, place: 1 }, { id: 'b1', name: 'Shark Pressure Washing', points: 55, logged: 4, backed: 5, fast: 0, place: 2 }, { id: 'b2', name: 'Gulf Coast Plumbing', points: 31, logged: 2, backed: 3, fast: 1, place: 3 }, { id: 'b4', name: 'Tropical Garden Designs', points: 9, logged: 0, backed: 3, fast: 0, place: 4 }, { id: 'b5', name: 'Electrical Experts of Florida', points: 0, logged: 0, backed: 0, fast: 0, place: 5 }],
+        mvp: { name: 'Dana Lee', business_id: 'b3', points: 48 } });
+      const v = { leaderboard: lb(args && args.p_offset), slack_enabled: false, get_settings: { join_code: 'TCSA4821', app_url: '', slack_set: false, season_goal: '150' } }[name];
         return Promise.resolve({ data: v === undefined ? null : v, error: null }); },
       auth: {
         getSession: async () => ({ data: { session: signedIn ? { user: { id: 'me' } } : null } }),

@@ -8,7 +8,7 @@ const out = process.argv[2];
   const b = await chromium.launch();
   const errors = [];
   async function page(opts) {
-    const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: opts.dark ? 'dark' : 'light', userAgent: opts.ua });
+    const ctx = await b.newContext({ viewport: { width: opts.vw || 390, height: opts.vw ? 720 : 844 }, colorScheme: opts.dark ? 'dark' : 'light', userAgent: opts.ua });
     if (opts.noPush) await ctx.addInitScript(() => { delete window.PushManager; });
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(opts.name + ': ' + e.message));
@@ -31,7 +31,7 @@ const out = process.argv[2];
     { name: 'todo' }, { name: 'todo-dark', dark: true },
     { name: 'card', q: '?r=r1' },
     { name: 'log', hash: '#/log', act: async (p) => { await p.selectOption('#logBiz', 'b1'); await p.waitForTimeout(200); } },
-    { name: 'stats', hash: '#/stats' },
+    { name: 'stats', hash: '#/stats' }, { name: 'race', hash: '#/race' }, { name: 'race-dark', hash: '#/race', dark: true }, { name: 'race-tv', hash: '#/race/tv', vw: 1280 },
     { name: 'admin', hash: '#/admin' }, { name: 'admin-biz', hash: '#/admin/b/b1' },
     { name: 'admin-members', hash: '#/admin/members' }, { name: 'me', hash: '#/me' }, { name: 'iphone-todo', ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1', noPush: true }, { name: 'admin-settings', hash: '#/admin/settings' }
   ];
@@ -39,7 +39,7 @@ const out = process.argv[2];
     const p = await page(s);
     if (s.act) await s.act(p);
     const w = await p.evaluate(() => document.documentElement.scrollWidth);
-    if (w > 390) errors.push(s.name + ': page is ' + w + 'px wide');
+    if (w > (s.vw || 390)) errors.push(s.name + ': page is ' + w + 'px wide');
     const text = await p.evaluate(() => document.querySelector('#main').innerText.slice(0, 120).replace(/\n/g, ' | '));
     console.log(s.name.padEnd(15), text);
     if (out) await p.screenshot({ path: path.join(out, s.name + '.png'), fullPage: true });

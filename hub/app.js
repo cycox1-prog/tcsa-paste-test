@@ -390,6 +390,7 @@ function logView() {
     const bb = blurbBlock(b.id, Math.floor(Math.random() * 10));
     blurb = bb;
     kit.replaceChildren(
+      b.id === me.business_id && h('p', { class: 'err-box small' }, 'This is your own business. You can log it, but it doesn\'t earn race points.'),
       h('ol', { class: 'steps' },
         h('li', null, h('div', null, h('h3', null, 'Copy the text and reply on the post'), bb.el)),
         h('li', null, h('div', null, h('h3', null, 'Copy the artwork into the same reply'), artBlock(b))),
@@ -442,6 +443,7 @@ function loggedView(r) {
   show(h('div', { class: 'card' },
     h('span', { class: 'eyebrow' }, 'Logged'),
     h('h1', null, b.name + ' referral logged'),
+    r.referred_business_id !== me.business_id && h('p', { class: 'pts-earned' }, '+10 race points for ' + ((D.biz[me.business_id] || {}).name || 'your business')),
     h('p', null, 'Everyone with alerts turned on has been notified' + (slackOn ? ', and a notice was posted in Slack.' : '.') + ' It\'s also on their To do list.'),
     !slackOn && h('details', { class: 'more' }, h('summary', null, 'Also post it in Slack?'),
       h('div', { class: 'stack' }, h('div', { class: 'blurb' }, slackMsg),
@@ -478,7 +480,7 @@ async function cardView(id) {
     doneBtn.disabled = true;
     try {
       if (mine) { await q(sb.from('backups').delete().eq('referral_id', r.id).eq('user_id', me.id)); toast('Marked not done'); }
-      else { const c = bb.current(); await q(sb.from('backups').insert({ referral_id: r.id, blurb_id: c ? c.id : null })); toast('Nice. Marked done.'); }
+      else { const c = bb.current(); await q(sb.from('backups').insert({ referral_id: r.id, blurb_id: c ? c.id : null })); const pts = racePoints(r, Date.now() - new Date(r.created_at) <= 15 * 60000); toast(pts ? 'Marked done · +' + pts + ' race points' : 'Marked done'); }
       route();
     } catch (e) { setStatus(doneSt, errText(e), 'err'); doneBtn.disabled = false; }
   });
@@ -701,6 +703,8 @@ async function adminSettings() {
   };
   const appDefault = location.origin + location.pathname;
   const code = field('setCode', 'Group code', s.join_code, 'Share this with members so they can join. Change it to stop new sign-ups.');
+  const goal = field('setGoal', 'Monthly group goal', s.season_goal || '150', 'Total referrals the whole group aims for each month. Shown on the race board.', 'text');
+  goal.inp.inputMode = 'numeric';
   const app = field('setApp', 'App address', s.app_url || appDefault, 'Used for the link in alerts and Slack notices.', 'url');
   const hook = field('setHook', 'Slack webhook URL', '', s.slack_set ? 'A webhook is set. Paste a new one to replace it.' : 'Not set. Slack notices are off.', 'url');
   hook.inp.placeholder = 'https://hooks.slack.com/services/…';
@@ -711,6 +715,7 @@ async function adminSettings() {
   return [
     h('h1', null, 'Admin'), adminTabs('settings'),
     h('div', { class: 'card' }, code.el, h('button', { class: 'btn', type: 'button', onclick: () => saveOne('join_code', code, code.inp.value.trim()) }, 'Save group code')),
+    h('div', { class: 'card' }, goal.el, h('button', { class: 'btn', type: 'button', onclick: () => saveOne('season_goal', goal, goal.inp.value.trim()) }, 'Save goal')),
     h('div', { class: 'card' }, app.el, h('button', { class: 'btn', type: 'button', onclick: () => saveOne('app_url', app, app.inp.value.trim()) }, 'Save app address')),
     h('div', { class: 'card' }, h('h2', null, 'Slack notices (optional)'), h('p', { class: 'hint' }, 'Phone alerts work without Slack. Add a webhook only if the group also wants notices in a Slack channel.'), hook.el,
       h('div', { class: 'row' },
@@ -730,13 +735,130 @@ function meView() {
   ];
 }
 
+// ---------------------------------------------------------------- participation race
+const RACE = { root: null, lanes: new Map(), data: null, timer: null, channel: null, pending: null };
+const PLACE = (n) => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'));
+const LANE_H = () => (document.body.classList.contains('tv') ? 92 : 64);
+
+function racePoints(r, isFast) {
+  // Mirrors the database scoring, for instant feedback only.
+  if (r.referred_business_id === me.business_id) return 0;
+  return isFast ? 5 : 3;
+}
+
+function boatEl(b) {
+  const url = artUrl(b);
+  const face = url ? h('img', { src: url, alt: '', loading: 'lazy' }) : h('span', { class: 'initials' }, b.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase());
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 60 16'); svg.setAttribute('class', 'hull'); svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = '<path d="M2 3h56l-7 11H9z" fill="var(--bar)"/><path d="M2 3h56" stroke="var(--gold)" stroke-width="2"/>';
+  return h('div', { class: 'boat' }, h('div', { class: 'face' }, face), svg);
+}
+
+function paintRace(data, flash) {
+  const list = data.businesses;
+  const lead = Math.max(1, ...list.map((b) => b.points));
+  const H = LANE_H();
+  const track = RACE.root.querySelector('.track');
+  track.style.height = (list.length * H) + 'px';
+  const seen = new Set();
+  list.forEach((b, i) => {
+    seen.add(b.id);
+    let lane = RACE.lanes.get(b.id);
+    const prev = lane ? Number(lane.dataset.place) : null;
+    if (!lane) {
+      lane = h('div', { class: 'lane' + (b.id === me.business_id ? ' mine' : '') },
+        h('span', { class: 'place' }), h('div', { class: 'water' }, boatEl(D.biz[b.id] || b)),
+        h('div', { class: 'tag' }, h('b', { class: 'pts' }), h('span', { class: 'nm' })));
+      lane.style.top = (i * H) + 'px';
+      track.append(lane); RACE.lanes.set(b.id, lane);
+    }
+    lane.dataset.place = b.place;
+    lane.style.top = (i * H) + 'px';
+    const pl = lane.querySelector('.place');
+    pl.textContent = b.points > 0 ? PLACE(b.place) : '–';
+    pl.className = 'place' + (b.points > 0 && b.place <= 3 ? ' p' + b.place : '');
+    lane.querySelector('.pts').textContent = b.points + ' pts';
+    lane.querySelector('.nm').textContent = b.name;
+    lane.querySelector('.boat').style.left = 'calc((100% - var(--boat-w)) * ' + (b.points / lead).toFixed(3) + ')';
+    lane.title = b.name + ': ' + b.logged + ' referrals logged, ' + b.backed + ' backups (' + b.fast + ' fast)';
+    if (flash && prev && prev > b.place && b.points > 0) {
+      lane.classList.remove('flash'); void lane.offsetWidth; lane.classList.add('flash');
+      if (b.id === me.business_id) toast((D.biz[b.id] || b).name + ' moved up to ' + PLACE(b.place) + '!');
+    }
+  });
+  for (const [id, lane] of RACE.lanes) if (!seen.has(id)) { lane.remove(); RACE.lanes.delete(id); }
+
+  const leader = list[0];
+  const daysLeft = Math.max(0, Math.ceil((new Date(data.season_end) - Date.now()) / 86400000));
+  RACE.root.querySelector('.r-title').textContent = leader && leader.points > 0
+    ? (list.filter((b) => b.place === 1).length > 1 ? 'Tied for the lead' : leader.name + ' leads')
+    : 'The race is on';
+  RACE.root.querySelector('.r-sub').textContent = data.label + ' race · ' + (daysLeft === 1 ? '1 day left' : daysLeft + ' days left');
+  const pct = Math.min(100, Math.round((data.total_referrals / data.goal) * 100));
+  RACE.root.querySelector('.goal-fill').style.width = pct + '%';
+  RACE.root.querySelector('.goal-num').textContent = data.total_referrals + ' of ' + data.goal + ' referrals';
+  RACE.root.querySelector('.goal-pct').textContent = pct >= 100 ? 'Goal reached!' : pct + '%';
+  const mvp = RACE.root.querySelector('.mvp');
+  mvp.textContent = data.mvp ? data.mvp.name + ' (' + ((D.biz[data.mvp.business_id] || {}).name || '') + ') · ' + data.mvp.points + ' pts' : 'No points scored yet this month';
+}
+
+async function refreshRace(flash) {
+  if (!RACE.root || !RACE.root.isConnected) return;
+  try { RACE.data = await q(sb.rpc('leaderboard', { p_offset: 0 })); paintRace(RACE.data, flash); } catch (e) { /* keep the last board */ }
+}
+
+function listenForRace() {
+  if (RACE.channel) return;
+  const kick = () => { clearTimeout(RACE.pending); RACE.pending = setTimeout(() => refreshRace(true), 700); };
+  RACE.channel = sb.channel('race-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'referrals' }, kick)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'backups' }, kick)
+    .subscribe();
+}
+
+async function raceView(tv) {
+  markTab('race');
+  const [now, last] = await Promise.all([q(sb.rpc('leaderboard', { p_offset: 0 })), q(sb.rpc('leaderboard', { p_offset: -1 }))]);
+  RACE.lanes = new Map(); RACE.data = now;
+  const lastWin = last.businesses[0] && last.businesses[0].points > 0 ? last.businesses[0] : null;
+  RACE.root = h('section', { class: 'race' + (tv ? ' is-tv' : '') },
+    h('div', { class: 'row between' },
+      h('div', { class: 'stack', style: 'gap:2px' }, h('span', { class: 'eyebrow r-sub' }), h('h1', { class: 'r-title' })),
+      tv ? h('a', { class: 'btn quiet sm', href: '#/race' }, 'Exit TV mode') : h('a', { class: 'btn quiet sm', href: '#/race/tv' }, 'TV mode')),
+    h('div', { class: 'card goal' },
+      h('div', { class: 'row between' }, h('h2', null, 'Group goal'), h('span', { class: 'goal-pct pill ok' })),
+      h('div', { class: 'goal-bar', role: 'img', 'aria-label': 'Group goal progress' }, h('span', { class: 'goal-fill' })),
+      h('p', { class: 'small muted goal-num' })),
+    h('div', { class: 'card sea' }, h('div', { class: 'finish', 'aria-hidden': 'true' }), h('div', { class: 'track' })),
+    h('div', { class: 'card' },
+      h('div', { class: 'row between' }, h('h2', null, 'MVP of the month'), h('span', { class: 'pill' }, 'Top individual')),
+      h('p', { class: 'mvp' }),
+      lastWin && h('p', { class: 'small muted' }, last.label + ' winner: ', h('b', null, lastWin.name), ' with ' + lastWin.points + ' pts')),
+    !tv && h('details', { class: 'card more' }, h('summary', null, 'How points work'),
+      h('div', { class: 'tablewrap' }, h('table', null,
+        h('tbody', null,
+          h('tr', null, h('td', null, 'Log a referral for another business'), h('td', { class: 'num' }, '10')),
+          h('tr', null, h('td', null, 'Back up someone else\'s referral'), h('td', { class: 'num' }, '3')),
+          h('tr', null, h('td', null, 'Back up within 15 minutes'), h('td', { class: 'num' }, '+2')),
+          h('tr', null, h('td', null, 'Referrals or backups for your own business'), h('td', { class: 'num' }, '0'))))),
+      h('p', { class: 'hint' }, 'Points go to your business. One scoring referral per Facebook post per person. The race resets on the 1st of every month.')));
+  requestAnimationFrame(() => paintRace(now, false));
+  listenForRace();
+  clearInterval(RACE.timer); RACE.timer = setInterval(() => refreshRace(true), 60000);
+  return RACE.root;
+}
+
 // ---------------------------------------------------------------- router
 async function route() {
   if (!me) return;
   const p = (location.hash || '#/').slice(1).split('/').filter(Boolean);
+  document.body.classList.toggle('tv', p[0] === 'race' && p[1] === 'tv');
+  if (p[0] !== 'race') clearInterval(RACE.timer);
   try {
     let v;
     if (p[0] === 'log') v = logView();
+    else if (p[0] === 'race') v = await raceView(p[1] === 'tv');
     else if (p[0] === 'me') v = meView();
     else if (p[0] === 'r' && p[1]) v = await cardView(p[1]);
     else if (p[0] === 'stats') v = await statsView();
